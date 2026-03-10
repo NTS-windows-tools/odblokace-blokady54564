@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správa systému - Odblokace</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 20px; }
+        
+        .card { background: white; width: 100%; max-width: 400px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        h1 { font-size: 1.5rem; color: #1c1e21; margin-bottom: 15px; }
+        hr { border: none; border-top: 1px solid #e0e0e0; margin-bottom: 25px; }
+
+        /* Hlavní tlačítko */
+        #btn-unlock { width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-bottom: 15px; color: white; }
+        .btn-blue { background-color: #0084ff; }
+        .btn-blue:hover { background-color: #0073e6; }
+        .btn-disabled { background-color: #ccc !important; cursor: not-allowed !important; }
+
+        /* Status texty */
+        #status-text { font-size: 1rem; }
+        .status-locked { color: #dc3545; font-weight: normal; }
+        .status-unlocked { color: #28a745; font-weight: bold; }
+
+        /* Overlay / Modální okno */
+        #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+        .modal { background: white; padding: 25px; border-radius: 12px; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal h2 { margin-bottom: 15px; color: #1a1a1a; }
+        .modal p { margin-bottom: 25px; color: #4b4b4b; line-height: 1.4; }
+        
+        .modal-buttons { display: flex; flex-direction: column; gap: 10px; }
+        .btn-confirm { background: #0084ff; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-cancel { background: #e4e6eb; color: #4b4b4b; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Odblokace chatů</h1>
+        <hr>
+        <button id="btn-unlock" class="btn-blue">Odblokovat nyní</button>
+        <div id="status-text">Načítání stavu...</div>
+    </div>
+
+    <div id="modal-overlay">
+        <div class="modal">
+            <h2>Opravdu?</h2>
+            <p>Opravdu nyní provést aktivaci a odblokaci chatů? Operace se provede u všech uživatelů.</p>
+            <div class="modal-buttons">
+                <button id="confirm-action" class="btn-confirm">Ano, pokračovat a aktivovat</button>
+                <button id="cancel-action" class="btn-cancel">Zpět a Zrušit</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // Konfigurace (stejná jako u chatu)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBepISKDbwwF4nr3omck7MF8kBG8QV26WI",
+            authDomain: "chaty-e06fb.firebaseapp.com",
+            databaseURL: "https://chaty-e06fb-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "chaty-e06fb",
+            storageBucket: "chaty-e06fb.firebasestorage.app",
+            messagingSenderId: "1011142936145",
+            appId: "1:1011142936145:web:4febef996654f55ca31a70"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const mainRef = ref(db, 'global/main');
+
+        const btnUnlock = document.getElementById('btn-unlock');
+        const statusText = document.getElementById('status-text');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const confirmBtn = document.getElementById('confirm-action');
+        const cancelBtn = document.getElementById('cancel-action');
+
+        // Sledování stavu v databázi
+        onValue(mainRef, (snapshot) => {
+            const val = snapshot.val();
+
+            if (val === 1) {
+                // Odblokováno
+                btnUnlock.disabled = true;
+                btnUnlock.classList.add('btn-disabled');
+                btnUnlock.classList.remove('btn-blue');
+                statusText.innerHTML = '<span class="status-unlocked">Je odblokováno ✅</span>';
+                modalOverlay.style.display = 'none'; // Zavřít okno, pokud se stav změnil externě
+            } else {
+                // Zablokováno (val == 0 nebo null)
+                btnUnlock.disabled = false;
+                btnUnlock.classList.remove('btn-disabled');
+                btnUnlock.classList.add('btn-blue');
+                statusText.innerHTML = '<span class="status-locked">Stav: Zablokováno</span>';
+            }
+        });
+
+        // Otevření modálu
+        btnUnlock.addEventListener('click', () => {
+            modalOverlay.style.display = 'flex';
+        });
+
+        // Zavření modálu (Zrušit)
+        cancelBtn.addEventListener('click', () => {
+            modalOverlay.style.display = 'none';
+        });
+
+        // Potvrzení akce (Zápis do DB)
+        confirmBtn.addEventListener('click', () => {
+            set(mainRef, 1).catch((error) => {
+                alert("Chyba při komunikaci s databází.");
+                console.error(error);
+            });
+        });
+    </script>
+</body>
+</html>
